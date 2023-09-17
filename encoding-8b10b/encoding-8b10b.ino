@@ -101,7 +101,6 @@ unsigned char encode3B4B(unsigned char data, struct flag3B flags)
 
 unsigned char encode5B6B(unsigned char data, struct flag3B *flags) 
 {
-    
   unsigned char enc;
   char disparity;
   

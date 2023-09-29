@@ -2,7 +2,7 @@
 
 #define I2C_DEV_ADDR 0x95
 
-// // Tabelas de decodificação
+// Tabelas de decodificação
 unsigned char xTable[59];
 const unsigned char yDecTable[] = {
     0x00, 0x07, 0x04, 0x03, 0x00,
@@ -23,7 +23,6 @@ unsigned char decode5B6B(unsigned char data) {
 }
 
 unsigned char decode8B10B(unsigned int data) {
-  
   unsigned int decoded;
   unsigned char data6B, dec5B, data4B, dec3B;
   
@@ -69,22 +68,14 @@ void onDataReceived()
   {
     decoded[i] = decode8B10B(received[i]);
     char decodedChar = decoded[i];
-    Serial.print(decoded[i], DEC);
-    Serial.print(" "); 
-    Serial.print("(");
-    Serial.print(decodedChar);
-    Serial.print(")");
-    Serial.print(" -- ");
     message[i] = decodedChar;
   }
-  
-  Serial.println("");
-  Serial.println("Mensagem recebida:");
-  
+
   for(int i = 0; i < length; i++)
   {
     Serial.print(message[i]);
   }
+  Serial.println();
 }
 
 void setup()

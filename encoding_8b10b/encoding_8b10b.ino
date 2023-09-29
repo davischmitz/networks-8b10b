@@ -95,39 +95,23 @@ void serialEvent()
   int total_Length = length;
   int length_remaining = length;
 
-  Serial.println("--------------------------------------------------------------------------------------------------------------");
-
-  Serial.print("Mensagem a ser enviada: ");
+  Serial.println("Message: ");
   Serial.print(message);
-  Serial.print(" Tamanho: ");
-  Serial.println(length);
 
   unsigned char toEncode[length];
   strcpy((char *)toEncode, message.c_str());
 
   unsigned int encoded[length];
 
-  Serial.println("Dado bufferizado antes do encode:");
-  for (int i = 0; i < length; i++)
-  {
-    Serial.print(toEncode[i]);
-    Serial.print("(");
-    char t = toEncode[i];
-    Serial.print(t);
-    Serial.print(")");
-    Serial.print(" -- ");
-  }
-  Serial.println("");
-
-  Serial.println("Dado codificado para ser enviado:");
+  Serial.println("Encoded:");
   for (int i = 0; i < length; i++)
   {
     encoded[i] = encode8B10B(toEncode[i]);
     Serial.print(encoded[i], HEX);
-    Serial.print(" -- ");
+    Serial.print(" ");
   }
-
-  Serial.println("");
+  Serial.println();
+  
   Wire.beginTransmission(I2C_DEV_ADDR);
   for (int i = 0; i < length; i++)
   {
@@ -135,8 +119,6 @@ void serialEvent()
     Wire.write(lowByte(encoded[i]));
   }
   Wire.endTransmission();
-
-  Serial.println("--------------------------------------------------------------------------------------------------------------");
 }
 
 void setup()

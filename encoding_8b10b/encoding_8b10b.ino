@@ -102,17 +102,17 @@ void serialEvent()
   Serial.print(" Tamanho: ");
   Serial.println(length);
 
-  unsigned char dataPreEncode[length];
-  strcpy((char *)dataPreEncode, message.c_str());
+  unsigned char toEncode[length];
+  strcpy((char *)toEncode, message.c_str());
 
-  unsigned int dataPostEncode[length];
+  unsigned int encoded[length];
 
   Serial.println("Dado bufferizado antes do encode:");
   for (int i = 0; i < length; i++)
   {
-    Serial.print(dataPreEncode[i]);
+    Serial.print(toEncode[i]);
     Serial.print("(");
-    char t = dataPreEncode[i];
+    char t = toEncode[i];
     Serial.print(t);
     Serial.print(")");
     Serial.print(" -- ");
@@ -122,8 +122,8 @@ void serialEvent()
   Serial.println("Dado codificado para ser enviado:");
   for (int i = 0; i < length; i++)
   {
-    dataPostEncode[i] = encode8B10B(dataPreEncode[i]);
-    Serial.print(dataPostEncode[i], HEX);
+    encoded[i] = encode8B10B(toEncode[i]);
+    Serial.print(encoded[i], HEX);
     Serial.print(" -- ");
   }
 
@@ -131,8 +131,8 @@ void serialEvent()
   Wire.beginTransmission(I2C_DEV_ADDR);
   for (int i = 0; i < length; i++)
   {
-    Wire.write(highByte(dataPostEncode[i]));
-    Wire.write(lowByte(dataPostEncode[i]));
+    Wire.write(highByte(encoded[i]));
+    Wire.write(lowByte(encoded[i]));
   }
   Wire.endTransmission();
 

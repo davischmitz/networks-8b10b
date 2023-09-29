@@ -1,7 +1,6 @@
 #include <Wire.h>
 
 #define I2C_DEV_ADDR 0x55
-#define TX_PIN 12
 
 char rd;
 
@@ -143,8 +142,6 @@ void serialEvent()
 void setup()
 {
   Serial.begin(9600);
-
-  pinMode(TX_PIN, OUTPUT);
 
   setup8B10B();
 

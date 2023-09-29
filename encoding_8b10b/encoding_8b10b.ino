@@ -1,5 +1,10 @@
-/* ---------- Variáveis globais necessárias para a codificação ---------- */
-unsigned char xTable[32], yTable[9];
+#include <Wire.h>
+
+#define I2C_DEV_ADDR 0x55
+#define TX_PIN  12
+
+unsigned int inX, inY;
+unsigned char xTable[32], yTable[9], xDecTable[58], yDecTable[14];
 char rd;
 
 struct flag3B
@@ -64,13 +69,11 @@ void createEncodeTables(void)
 
 char bitDisparity(unsigned int data, unsigned char bits)
 {
-
   unsigned char ones = 0, zeros = 0;
   unsigned int i;
 
-  for (i = 0x1; bits > 0; i = i << 1, bits--)
-  {
-
+  for (i = 0x1; bits > 0; i = i << 1, bits--) {
+  
     if (data & i)
       ones++;
     else
@@ -82,64 +85,60 @@ char bitDisparity(unsigned int data, unsigned char bits)
 
 unsigned char encode3B4B(unsigned char data, struct flag3B flags)
 {
-
   unsigned char enc;
-
+  
   if (data == 7 && flags.y7Neg && rd < 0)
     enc = yTable[8];
   else if (data == 7 && flags.y7Pos && rd > 0)
     enc = ~yTable[8] & 0xF;
-  else
-  {
+  else {
     enc = yTable[data];
     if (flags.inv && (enc == 0xC || bitDisparity(enc, 4)))
       enc = ~enc & 0xF; // complemento de enc (4 bits -> 0xF = 0000 1111)
   }
-
+ 
   return enc;
 }
 
 unsigned char encode5B6B(unsigned char data, struct flag3B *flags)
 {
-
   unsigned char enc;
   char disparity;
-
+  
   enc = xTable[data];
   disparity = bitDisparity(enc, 6);
-
+  
   // Flags utilizados para codificação 3B4B
-  flags->inv = (disparity && rd < 0) || !(disparity || rd < 0); // (disparity) XOR (rd < 0)
-  flags->y7Pos = (data == 11 || data == 13 || data == 14);      // casos especiais para y = 7 e rd > 0
-  flags->y7Neg = (data == 17 || data == 18 || data == 20);      // casos especiais para y = 7 e rd < 0
-
+  flags->inv   = (disparity && rd < 0) || !(disparity || rd < 0); // (disparity) XOR (rd < 0)
+  flags->y7Pos = (data == 11 || data == 13 || data == 14);        // casos especiais para y = 7 e rd > 0 caracteres especiais K
+  flags->y7Neg = (data == 17 || data == 18 || data == 20);        // casos especiais para y = 7 e rd < 0 caracteres especiais K
+  
   if (rd > 0 && (enc == 0x38 || disparity))
     enc = ~enc & 0x3F; // complemento de enc (6 bits -> 0x3F = 0011 1111)
-
+  
   return enc;
 }
 
 unsigned int encode8B10B(unsigned char data)
 {
-
   unsigned int encoded;
   unsigned char data5B, enc6B, data3B, enc4B;
   struct flag3B flags;
-
+  
   data5B = data & 0x1F; // 5 bits menos significativos (EDCBA; 0x1F = 0001 1111)
   data3B = data & 0xE0; // 3 bits mais significativos  (HGF;   0xE0 = 1110 0000)
   data3B = data3B >> 5;
-
+  
   enc6B = encode5B6B(data5B, &flags); // (abcdei)
   enc4B = encode3B4B(data3B, flags);  // (fghj)
-
-  encoded = (unsigned int)enc6B;
-  encoded = encoded << 4;    // (abcdei0000)
-  encoded = encoded | enc4B; // (abcdeifghj)
-
+  
+  encoded = (unsigned int) enc6B;
+  encoded = encoded << 4;             // (abcdei0000)
+  encoded = encoded | enc4B;          // (abcdeifghj)
+  
   if (bitDisparity(encoded, 10))
     rd = -rd;
-
+  
   return encoded;
 }
 
@@ -149,73 +148,67 @@ void setup8B10B(void)
   createEncodeTables();
 }
 
-/* ---------------------------------------------------------------------- */
+void serialEvent()
+{
+  String message = Serial.readString();
+  int length = message.length() +1;
+  int total_Lenght = length;
+  int leght_remaining = length;
+  Serial.println("--------------------------------------------------------------------------------------------------------------");
 
-unsigned int inX, inY;
+  Serial.print("Mensagem a ser enviada:");
+  Serial.print(message);
+  Serial.println("Tamanho: ");
+  Serial.println(length);
+
+  unsigned char dataPreEncode[length]; 
+  strcpy((char*)dataPreEncode, message.c_str());
+
+  unsigned int dataPostEncode[length];
+  
+  Serial.println("Dado bufferizado antes do encode:");
+  for(int i = 0; i < length; i++)
+  {
+    Serial.print(dataPreEncode[i]);
+    Serial.print("(");
+    char t = dataPreEncode[i];
+    Serial.print(t);
+    Serial.print(")");
+    Serial.print(" -- ");
+  }
+  Serial.println("");
+
+  Serial.println("Dado codificado para ser enviado:");
+  for(int i = 0; i < length; i++)
+  {
+    dataPostEncode[i] = encode8B10B(dataPreEncode[i]);
+    Serial.print(dataPostEncode[i], HEX);
+    Serial.print(" -- ");
+  }
+  
+  Serial.println("");
+  Wire.beginTransmission(I2C_DEV_ADDR);
+  for(int i = 0; i < length; i++){
+    Wire.write(highByte(dataPostEncode[i]));
+    Wire.write(lowByte(dataPostEncode[i]));
+  }
+  Wire.endTransmission();
+
+  Serial.println("--------------------------------------------------------------------------------------------------------------");
+}
 
 void setup()
 {
-
+  pinMode(TX_PIN, OUTPUT);
   setup8B10B();
   inX = inY = 0;
   Serial.begin(9600);
-  Serial.print("    \t Y \t  X  \tCURRENT RD- \tCURRENT RD+ \t  \n");
-  Serial.print("DX.Y\tHGF\tEDCBA\tabcdei\tfghj\tabcdei\tfghj\tRD-\tRD+\n");
+  Serial.print("  INICIO DO ENCODER ");
+  Wire.begin();
 }
 
 void loop()
 {
-
-  unsigned int input, output;
-  unsigned int a, f;
-  char r;
-
-  Serial.print('D');
-  Serial.print(inX, DEC);
-  Serial.print('.');
-  Serial.print(inY, DEC);
-  Serial.print('\t');
-  Serial.print(inY, BIN);
-  Serial.print('\t');
-  Serial.print(inX, BIN);
-  Serial.print('\t');
-
-  rd = -1;
-  input = (inY << 5) | inX;
-  output = encode8B10B(input);
-
-  a = (output & 0x3F0) >> 4;
-  f = output & 0xF;
-
-  Serial.print(a, BIN);
-  Serial.print('\t');
-  Serial.print(f, BIN);
-  Serial.print('\t');
-
-  r = rd = 1;
-  output = encode8B10B(input);
-
-  a = (output & 0x3F0) >> 4;
-  f = output & 0xF;
-
-  Serial.print(a, BIN);
-  Serial.print('\t');
-  Serial.print(f, BIN);
-  Serial.print('\t');
-
-  if (r == rd)
-    Serial.print("same\n");
-  else
-    Serial.print("flip\n");
-
-  // no lugar da montagem da tabela, colocar um character fixo como input
-  if (++inY == 8)
-  {
-    inY = 0;
-    inX++;
-  }
-
-  if (inX >= 32)
-    while (1)
-      ;
+  if (Serial.available() > 0)
+    serialEvent();
 }

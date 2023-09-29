@@ -97,7 +97,7 @@ void serialEvent()
 
   Serial.println("--------------------------------------------------------------------------------------------------------------");
 
-  Serial.print("Mensagem a ser enviada:");
+  Serial.print("Mensagem a ser enviada: ");
   Serial.print(message);
   Serial.print(" Tamanho: ");
   Serial.println(length);
